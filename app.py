@@ -5,10 +5,7 @@ from langdetect import detect, DetectorFactory
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain_community.document_loaders import WebBaseLoader
-# from langchain.embeddings import HuggingFaceEmbeddings
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-
-# from langchain_community.embeddings import GPT4AllEmbeddings
+from langchain_community.embeddings import GPT4AllEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain import hub
 from langchain_core.runnables import RunnablePassthrough
@@ -85,19 +82,8 @@ def get_response(question):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=5000, chunk_overlap=500)
     all_splits = text_splitter.split_documents(all_data)
 
-
-# Example model field, replace with actual model identifier
-    embedding_model = "models/embedding-001"  # Or whatever model name you need
-
-# Now instantiate GoogleGenerativeAIEmbeddings with the model field
-    embedding = GoogleGenerativeAIEmbeddings(model=embedding_model)
-
-    # Then proceed to use it with Chroma or wherever needed
-    vectorstore = Chroma.from_documents(documents=all_splits, embedding=embedding)
-
-
     # Embed documents into vector store
-    # vectorstore = Chroma.from_documents(documents=all_splits, embedding=GoogleGenerativeAIEmbeddings())
+    vectorstore = Chroma.from_documents(documents=all_splits, embedding=GPT4AllEmbeddings())
 
     # Perform similarity search to get relevant documents based on question
     docs = vectorstore.similarity_search(question, k=5)
