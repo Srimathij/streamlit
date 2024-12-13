@@ -1,4 +1,3 @@
-zstreamlit
 python-dotenv
 langdetect
 langchain
