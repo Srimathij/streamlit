@@ -8,6 +8,5 @@ groq
 chroma
 requests
 beautifulsoup4
-GPT4AllEmbeddings
 gpt4all==2.8.2
 chromadb
