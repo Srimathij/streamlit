@@ -8,3 +8,5 @@ groq
 chroma
 requests
 beautifulsoup4
+gpt4all
+chromadb
