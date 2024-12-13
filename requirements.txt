@@ -11,4 +11,6 @@ beautifulsoup4
 gpt4all==2.8.2
 chromadb
 sentence-transformers
+langchain-google-genai
+
 
