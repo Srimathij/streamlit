@@ -5,7 +5,8 @@ from langdetect import detect, DetectorFactory
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain_community.document_loaders import WebBaseLoader
-from langchain.embeddings import HuggingFaceEmbeddings
+# from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 # from langchain_community.embeddings import GPT4AllEmbeddings
 from langchain_community.vectorstores import Chroma
@@ -85,7 +86,7 @@ def get_response(question):
     all_splits = text_splitter.split_documents(all_data)
 
     # Embed documents into vector store
-    vectorstore = Chroma.from_documents(documents=all_splits, embedding=HuggingFaceEmbeddings())
+    vectorstore = Chroma.from_documents(documents=all_splits, embedding=GoogleGenerativeAIEmbeddings())
 
     # Perform similarity search to get relevant documents based on question
     docs = vectorstore.similarity_search(question, k=5)
