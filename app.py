@@ -85,8 +85,19 @@ def get_response(question):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=5000, chunk_overlap=500)
     all_splits = text_splitter.split_documents(all_data)
 
+
+# Example model field, replace with actual model identifier
+    embedding_model = "models/embedding-001"  # Or whatever model name you need
+
+# Now instantiate GoogleGenerativeAIEmbeddings with the model field
+    embedding = GoogleGenerativeAIEmbeddings(model=embedding_model)
+
+    # Then proceed to use it with Chroma or wherever needed
+    vectorstore = Chroma.from_documents(documents=all_splits, embedding=embedding)
+
+
     # Embed documents into vector store
-    vectorstore = Chroma.from_documents(documents=all_splits, embedding=GoogleGenerativeAIEmbeddings())
+    # vectorstore = Chroma.from_documents(documents=all_splits, embedding=GoogleGenerativeAIEmbeddings())
 
     # Perform similarity search to get relevant documents based on question
     docs = vectorstore.similarity_search(question, k=5)
