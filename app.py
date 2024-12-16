@@ -2,16 +2,12 @@ import os
 import pandas as pd
 from dotenv import load_dotenv
 from langdetect import detect, DetectorFactory
-import streamlit as st
-        # Embed documents into vector store
-from langchain.embeddings import VertexAIEmbeddings
-from langchain.vectorstores import Chroma
-
+# import streamlit as st
 from groq import Groq
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain_community.document_loaders import WebBaseLoader                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-# from langchain_community.embeddings import GPT4AllEmbeddings
+from langchain_community.embeddings import GPT4AllEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain import hub
 from langchain_core.runnables import RunnablePassthrough
@@ -90,11 +86,10 @@ def get_response(question):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=5000, chunk_overlap=500)
     all_splits = text_splitter.split_documents(all_data)
 
+    # Embed documents into vector store
+    vectorstore = Chroma.from_documents(documents=all_splits, embedding=GPT4AllEmbeddings())
 
-    # Use Google Vertex AI Embeddings
-    vertex_ai_embeddings = VertexAIEmbeddings()
-    vectorstore = Chroma.from_documents(documents=all_splits, embedding=vertex_ai_embeddings)
-        # Perform similarity search to get relevant documents based on question
+    # Perform similarity search to get relevant documents based on question
     docs = vectorstore.similarity_search(question, k=5)
 
     # Helper function to format document content for model input
