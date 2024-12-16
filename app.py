@@ -5,6 +5,10 @@ from langdetect import detect, DetectorFactory
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain_community.document_loaders import WebBaseLoader
+from langchain_community.embeddings import GPT4AllEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain import hub
+from langchain_core.runnables import RunnablePassthrough
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from groq import Groq
 
@@ -61,6 +65,9 @@ def get_response(question):
     Answer:
     """
 
+    # Set up callback manager for streaming responses
+    callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
+
     # Load data from specified URLs
     urls = ["https://www.miraeassetmf.co.in/"]
 
@@ -75,24 +82,34 @@ def get_response(question):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=5000, chunk_overlap=500)
     all_splits = text_splitter.split_documents(all_data)
 
-    # Find relevant documents manually (basic filtering using keyword matching)
-    relevant_docs = [doc for doc in all_splits if question.lower() in doc.page_content.lower()]
+    # Embed documents into vector store
+    vectorstore = Chroma.from_documents(documents=all_splits, embedding=GPT4AllEmbeddings())
 
-    # If no documents match, return a fallback response
-    if not relevant_docs:
-        return "I couldn't find any relevant information based on your query. Please try rephrasing your question or providing more details."
+    # Perform similarity search to get relevant documents based on question
+    docs = vectorstore.similarity_search(question, k=5)
 
     # Helper function to format document content for model input
     def format_docs(docs):
         return "\n\n".join(doc.page_content for doc in docs)
 
     # Format content from relevant docs
-    websites_content = format_docs(relevant_docs)
+    websites_content = format_docs(docs)
 
-    # Prepare the input for the Groq model
+    # Choose prompt template based on detected language
     prompt_text = template_en.format(question=question)
 
-    # Groq API to generate the answer
+    # Call the RAG model with an LLM fine-tuned for retrieval accuracy
+    rag_prompt_llama = hub.pull("rlm/rag-prompt-llama")
+    retriever = vectorstore.as_retriever()
+    qa_chain = (
+        {"context": retriever | format_docs, "question": RunnablePassthrough()}
+        | rag_prompt_llama
+    )
+
+    # Invoke the RAG chain
+    answer = qa_chain.invoke(question)
+
+    # Groq API to post-process and improve the answer quality
     try:
         completion = client.chat.completions.create(
             model="llama3-70b-8192",
@@ -124,7 +141,7 @@ if "messages" not in st.session_state:
 user_input = st.chat_input("𝖠𝗌𝗄 𝖺𝗇𝗒𝗍𝗁𝗂𝗇𝗀 𝖺𝖻𝗈𝗎𝗍 𝖬𝗂𝗋𝖺𝖾 𝖠𝗌𝗌𝖾𝗍....!💸")
 
 # Streamlit title
-st.header("𝖬𝖨𝖱𝖠𝖤 𝖠𝖲𝖲𝖤𝗍")
+st.header("𝖬𝖨𝖱𝖠𝖤 𝖠𝖲𝖲𝖤𝖳")
 
 # Process user input
 if user_input:
