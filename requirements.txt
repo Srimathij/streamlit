@@ -11,3 +11,4 @@ gpt4all
 chromadb
 sentence-transformers
 langchain-google-genai
+langchain-huggingface
