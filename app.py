@@ -1,16 +1,21 @@
 import os
-import streamlit as st
+import pandas as pd
 from dotenv import load_dotenv
 from langdetect import detect, DetectorFactory
+import streamlit as st
+        # Embed documents into vector store
+from langchain.embeddings import VertexAIEmbeddings
+from langchain.vectorstores import Chroma
+
+from groq import Groq
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from langchain_community.document_loaders import WebBaseLoader
-from langchain_community.embeddings import GPT4AllEmbeddings
+from langchain_community.document_loaders import WebBaseLoader                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+# from langchain_community.embeddings import GPT4AllEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain import hub
 from langchain_core.runnables import RunnablePassthrough
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from groq import Groq
 
 # Ensure consistent language detection results
 DetectorFactory.seed = 0
@@ -69,7 +74,10 @@ def get_response(question):
     callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 
     # Load data from specified URLs
-    urls = ["https://www.miraeassetmf.co.in/"]
+    urls = [
+        
+        "https://www.miraeassetmf.co.in/"
+    ]
 
     # Collect and split documents for better context retrieval
     all_data = []
@@ -82,10 +90,11 @@ def get_response(question):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=5000, chunk_overlap=500)
     all_splits = text_splitter.split_documents(all_data)
 
-    # Embed documents into vector store
-    vectorstore = Chroma.from_documents(documents=all_splits, embedding=GPT4AllEmbeddings())
 
-    # Perform similarity search to get relevant documents based on question
+    # Use Google Vertex AI Embeddings
+    vertex_ai_embeddings = VertexAIEmbeddings()
+    vectorstore = Chroma.from_documents(documents=all_splits, embedding=vertex_ai_embeddings)
+        # Perform similarity search to get relevant documents based on question
     docs = vectorstore.similarity_search(question, k=5)
 
     # Helper function to format document content for model input
@@ -126,35 +135,8 @@ def get_response(question):
         for chunk in completion:
             response += chunk.choices[0].delta.content or ""
 
+
         return response
 
     except Exception as e:
         return f"An error occurred: {e}"
-
-# Initialize session state for Streamlit
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "assistant", "content": "Hello and welcome! 🎉 You're in the right place to explore the Mirae asset mutual fund. Just ask your question and let’s dive into the details!"}
-    ]
-
-# Chat input field at the top
-user_input = st.chat_input("𝖠𝗌𝗄 𝖺𝗇𝗒𝗍𝗁𝗂𝗇𝗀 𝖺𝖻𝗈𝗎𝗍 𝖬𝗂𝗋𝖺𝖾 𝖠𝗌𝗌𝖾𝗍....!💸")
-
-# Streamlit title
-st.header("𝖬𝖨𝖱𝖠𝖤 𝖠𝖲𝖲𝖤𝖳")
-
-# Process user input
-if user_input:
-    # Add the user message to chat history
-    st.session_state.messages.append({"role": "user", "content": user_input})
-
-    # Get RAG + Groq response
-    response = get_response(user_input)
-    
-    # Add the assistant response to the chat history
-    st.session_state.messages.append({"role": "assistant", "content": response})
-
-# Display the full chat history
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.write(message["content"])
