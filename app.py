@@ -5,11 +5,8 @@ from langdetect import detect, DetectorFactory
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain_community.document_loaders import WebBaseLoader
-from langchain_community.embeddings import GPT4AllEmbeddings
-from langchain_community.vectorstores import Chroma
-from langchain import hub
-from langchain_core.runnables import RunnablePassthrough
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from transformers import pipeline, AutoTokenizer, AutoModel
 from groq import Groq
 
 # Ensure consistent language detection results
@@ -21,6 +18,11 @@ groq_api_key = os.getenv("GROQ_API_KEY")
 
 # Initialize the Groq client
 client = Groq(api_key=groq_api_key)
+
+# Initialize Hugging Face model
+tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+model = AutoModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+qa_pipeline = pipeline("question-answering", model="deepset/roberta-base-squad2")
 
 def get_response(question):
     # Detect the language of the question
@@ -65,9 +67,6 @@ def get_response(question):
     Answer:
     """
 
-    # Set up callback manager for streaming responses
-    callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
-
     # Load data from specified URLs
     urls = ["https://www.miraeassetmf.co.in/"]
 
@@ -82,35 +81,34 @@ def get_response(question):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=5000, chunk_overlap=500)
     all_splits = text_splitter.split_documents(all_data)
 
-    # Embed documents into vector store
-    vectorstore = Chroma.from_documents(documents=all_splits, embedding=GPT4AllEmbeddings())
+    # Manually retrieve relevant chunks using Hugging Face embeddings (semantic similarity)
+    question_embedding = model(**tokenizer(question, return_tensors="pt"))
+    relevant_docs = []
 
-    # Perform similarity search to get relevant documents based on question
-    docs = vectorstore.similarity_search(question, k=5)
+    for doc in all_splits:
+        doc_embedding = model(**tokenizer(doc.page_content, return_tensors="pt"))
+        similarity_score = (question_embedding.last_hidden_state @ doc_embedding.last_hidden_state.T).mean().item()
+        if similarity_score > 0.8:  # Threshold for similarity
+            relevant_docs.append(doc)
 
     # Helper function to format document content for model input
     def format_docs(docs):
         return "\n\n".join(doc.page_content for doc in docs)
 
+    # If no relevant documents are found, return a fallback response
+    if not relevant_docs:
+        return "I couldn't find any relevant information based on your query. Please try rephrasing your question or providing more details."
+
     # Format content from relevant docs
-    websites_content = format_docs(docs)
+    websites_content = format_docs(relevant_docs)
 
-    # Choose prompt template based on detected language
-    prompt_text = template_en.format(question=question)
-
-    # Call the RAG model with an LLM fine-tuned for retrieval accuracy
-    rag_prompt_llama = hub.pull("rlm/rag-prompt-llama")
-    retriever = vectorstore.as_retriever()
-    qa_chain = (
-        {"context": retriever | format_docs, "question": RunnablePassthrough()}
-        | rag_prompt_llama
-    )
-
-    # Invoke the RAG chain
-    answer = qa_chain.invoke(question)
+    # Use the Hugging Face QA model to generate an answer
+    qa_input = {"question": question, "context": websites_content}
+    hf_response = qa_pipeline(qa_input)
 
     # Groq API to post-process and improve the answer quality
     try:
+        prompt_text = template_en.format(question=question)
         completion = client.chat.completions.create(
             model="llama3-70b-8192",
             messages=[{"role": "user", "content": prompt_text}],
@@ -141,14 +139,14 @@ if "messages" not in st.session_state:
 user_input = st.chat_input("𝖠𝗌𝗄 𝖺𝗇𝗒𝗍𝗁𝗂𝗇𝗀 𝖺𝖻𝗈𝗎𝗍 𝖬𝗂𝗋𝖺𝖾 𝖠𝗌𝗌𝖾𝗍....!💸")
 
 # Streamlit title
-st.header("𝖬𝖨𝖱𝖠𝖤 𝖠𝖲𝖲𝖤𝖳")
+st.header("𝖬𝖨𝖱𝖠𝖤 𝖠𝖲𝖲𝖤𝗍")
 
 # Process user input
 if user_input:
     # Add the user message to chat history
     st.session_state.messages.append({"role": "user", "content": user_input})
 
-    # Get RAG + Groq response
+    # Get response
     response = get_response(user_input)
     
     # Add the assistant response to the chat history
