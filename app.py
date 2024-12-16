@@ -11,7 +11,7 @@ from langchain import hub
 from langchain_core.runnables import RunnablePassthrough
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from groq import Groq
-from langchain.embeddings import VertexAIEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Chroma
 
 
@@ -87,8 +87,10 @@ def get_response(question):
 
     # Embed documents into vector store
     # Use Google Vertex AI Embeddings
-    vertex_ai_embeddings = VertexAIEmbeddings()
-    vectorstore = Chroma.from_documents(documents=all_splits, embedding=vertex_ai_embeddings)
+    
+    # Use HuggingFace Embeddings
+    huggingface_embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+    vectorstore = Chroma.from_documents(documents=all_splits, embedding=huggingface_embeddings)
 
     # vectorstore = Chroma.from_documents(documents=all_splits, embedding=GPT4AllEmbeddings())
 
